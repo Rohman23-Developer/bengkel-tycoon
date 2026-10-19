@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Bengkel Tycoon — 3D Vertical Slice</title>
+  <link rel="stylesheet" href="css/style-3d.css">
+</head>
+<body>
+  <div id="game-container-3d">
+    <canvas id="glCanvas"></canvas>
+
+    <!-- HUD (simple) -->
+    <div id="hud3d">
+      <div id="hud-shop">Bengkel Berkah</div>
+      <div id="hud-cash">Rp 15.000.000</div>
+    </div>
+
+    <!-- Simple on-screen joystick for mobile (re-using same markup style) -->
+    <div id="joystick-3d">
+      <div id="joystick-area-3d"><div id="joystick-knob-3d"></div></div>
+    </div>
+
+    <div id="info-overlay">WASD / Arrow = Gerak • Tombol virtual untuk touch</div>
+  </div>
+
+  <script type="module" src="js/three-init.js"></script>
+</body>
+</html>
