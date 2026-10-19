@@ -4,7 +4,24 @@ import { openDialogue, closeDialogue, showToast, updateHUD } from './ui.js';
 import { audio } from './audio.js';
 
 // Basic isometric orthographic scene
-const canvas = document.getElementById('glCanvas');
+let canvas = document.getElementById('glCanvas');
+if(!canvas){
+  // fallback to main canvas id used by index.html
+  canvas = document.getElementById('gameCanvas');
+}
+if(!canvas){
+  // if still missing, create canvas and append to container
+  const container = document.getElementById('game-container') || document.body;
+  canvas = document.createElement('canvas');
+  canvas.id = 'glCanvas';
+  canvas.style.position = 'absolute';
+  canvas.style.left = '0';
+  canvas.style.top = '0';
+  canvas.style.width = '100%';
+  canvas.style.height = '100%';
+  container.insertBefore(canvas, container.firstChild);
+}
+
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
