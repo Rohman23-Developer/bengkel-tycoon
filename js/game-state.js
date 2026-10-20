@@ -3,7 +3,7 @@ export const SAVE_KEY = 'BENGKEL_TYCOON_SAVE_V1';
 export const GameState = {
   player: {
     name: 'Rian',
-    shopName: 'Bengkel Berkah',
+    shopName: 'Bengkel Rian',
     cash: 15000000,
     rep: 0,
     hp: 75,
@@ -14,87 +14,147 @@ export const GameState = {
     y: 0,
     speed: 150,
     isSprinting: false,
-    hasBasicTools: false
+    hasBasicTools: false,
+    sleepDebt: 0,
+    fatigue: 0
   },
-  time: { day:1, hour:8, minute:0, timer:0 },
-  quest: { chapter:1, step:0, title:'Bab 1: Langkah Pertama', desc:'Bicaralah dengan Om Danu (Mekanik Senior) di depan rumahnya.' },
-  profile: { playerName:'Rian', shopName:'Bengkel Berkah', complete:false },
-  story: {
-    tutorialSeen:false,
-    chapter:1,
-    title:'Bab 1: Langkah Pertama',
-    summary:'Rian memulai hari dengan tekad baru untuk membangun bengkel kecil di depan rumah.',
-    text:'Hari pertamamu dimulai dengan semangat baru. Rumah kecil, alat terbatas, dan niat kuat untuk membangun bengkel motor yang siap melayani pelanggan.'
+  time: {
+    day: 1,
+    hour: 8,
+    minute: 0,
+    timer: 0
+  },
+  quest: {
+    chapter: 1,
+    step: 0,
+    title: 'Bab 1: Langkah Pertama',
+    desc: 'Bicaralah dengan Om Danu di depan rumah.'
   },
   currentServiceCustomer: null,
   isPaused: false,
-  boot: { introComplete:false }
+  story: {
+    chapter: 1,
+    title: 'Bab 1: Langkah Pertama',
+    summary: 'Rian mulai menjalani hari pertamanya di bengkel baru.',
+    text: 'Hari pertamamu dimulai di rumah kecil dan bengkel baru yang sedang dibangun.'
+  },
+  profile: {
+    complete: false
+  },
+  boot: {
+    introComplete: false
+  }
 };
 
-export function formatRupiah(num){ return 'Rp ' + Math.floor(num).toLocaleString('id-ID'); }
-
-export function applyProfile(profile = {}){
-  const playerName = String(profile.playerName || '').trim();
-  const shopName = String(profile.shopName || '').trim();
-  if (playerName) {
-    GameState.player.name = playerName;
-    GameState.profile.playerName = playerName;
-  }
-  if (shopName) {
-    GameState.player.shopName = shopName;
-    GameState.profile.shopName = shopName;
-  }
-  GameState.profile.complete = true;
-  GameState.boot.introComplete = true;
+export function formatRupiah(num) {
+  return 'Rp ' + Math.floor(num).toLocaleString('id-ID');
 }
 
 export function ensureStoryState() {
-  GameState.story = {
-    tutorialSeen: !!GameState.story?.tutorialSeen,
-    chapter: Number(GameState.story?.chapter || 1),
-    title: GameState.story?.title || 'Bab 1: Langkah Pertama',
-    summary: GameState.story?.summary || 'Rian memulai harinya dengan semangat membangun bengkel baru.',
-    text: GameState.story?.text || 'Hari pertamamu dimulai dengan rumah kecil, bengkel baru, dan harapan besar.'
-  };
+  if (!GameState.story) {
+    GameState.story = {
+      chapter: 1,
+      title: 'Bab 1: Langkah Pertama',
+      summary: 'Rian mulai menjalani hari pertamanya di bengkel baru.',
+      text: 'Hari pertamamu dimulai di rumah kecil dan bengkel baru yang sedang dibangun.'
+    };
+  }
 
-  if (!GameState.story.title || !GameState.story.text) {
-    GameState.story.title = GameState.quest.title;
-    GameState.story.summary = GameState.quest.desc;
-    GameState.story.text = GameState.quest.desc;
+  if (!GameState.profile) {
+    GameState.profile = { complete: false };
+  }
+
+  if (!GameState.boot) {
+    GameState.boot = { introComplete: false };
   }
 }
 
-export function setStoryChapter(chapter = 1) {
-  const safeChapter = Math.max(1, Number(chapter) || 1);
+export function setStoryChapter(chapter) {
+  ensureStoryState();
+
   const chapters = {
     1: {
       title: 'Bab 1: Langkah Pertama',
-      summary: 'Rian memulai hari dengan tekad baru untuk membangun bengkel kecil di depan rumah.',
-      text: 'Hari pertamamu dimulai dengan rumah sederhana, bengkel kecil, dan niat kuat untuk membuka usaha yang layak di masa depan.'
+      summary: 'Mulai membangun bengkel dari nol.',
+      text: 'Rian kembali ke rumah, menyiapkan area kerja, dan bertemu Om Danu untuk memulai usaha bengkel.'
     },
     2: {
-      title: 'Bab 2: Pelanggan Pertama',
-      summary: 'Bengkel mulai dikenal dan langkah pertama pelanggan datang dengan kebutuhan servis.',
-      text: 'Mas Budi datang membawa motor dengan keluhan sederhana, tetapi ini adalah momen penting untuk membangun reputasi dan kepercayaan pelanggan.'
+      title: 'Bab 2: Servis Pertama',
+      summary: 'Peralatan mulai lengkap dan pelanggan mulai datang.',
+      text: 'Dengan perkakas dasar yang sudah terbeli, Rian siap menerima servis motor pertama dari pelanggan.'
     },
     3: {
-      title: 'Bab 3: Masa Sulit, Semangat Tinggi',
-      summary: 'Saldo mulai berkurang, tenaga menipis, tapi pengalaman dan reputasi terus tumbuh.',
-      text: 'Setiap servis adalah ujian. Rian belajar menjaga tenaga, uang, dan kualitas kerja agar usaha bengkel ini tetap bertahan.'
-    },
-    4: {
-      title: 'Bab 4: Jalan Menuju Bengkel Besar',
-      summary: 'Bengkel mulai berkembang, kebutuhan alat bertambah, dan reputasi mulai menyebar.',
-      text: 'Dari satu ruang kerja kecil, usaha ini mulai melangkah menuju bengkel yang lebih rapi, lebih profesional, dan lebih siap melayani banyak pelanggan.'
+      title: 'Bab 3: Membangun Reputasi',
+      summary: 'Reputasi bengkel mulai tumbuh.',
+      text: 'Semakin banyak pelanggan yang puas, reputasi bengkel semakin kuat dan membuka peluang baru.'
     }
   };
 
-  const chapterData = chapters[safeChapter] || chapters[1];
-  GameState.story.chapter = safeChapter;
-  GameState.story.title = chapterData.title;
-  GameState.story.summary = chapterData.summary;
-  GameState.story.text = chapterData.text;
-  GameState.quest.chapter = safeChapter;
-  GameState.quest.title = chapterData.title;
-  GameState.quest.desc = chapterData.summary;
+  const selected = chapters[chapter] || chapters[1];
+  GameState.story.chapter = chapter;
+  GameState.story.title = selected.title;
+  GameState.story.summary = selected.summary;
+  GameState.story.text = selected.text;
+  GameState.quest.chapter = chapter;
+  GameState.quest.title = selected.title;
+  GameState.quest.desc = selected.summary;
+}
+
+export function saveGame() {
+  try {
+    if (typeof localStorage === 'undefined') return false;
+    localStorage.setItem(SAVE_KEY, JSON.stringify(GameState));
+    return true;
+  } catch (error) {
+    console.warn('saveGame failed:', error);
+    return false;
+  }
+}
+
+export function loadGame() {
+  try {
+    if (typeof localStorage === 'undefined') return false;
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return false;
+
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return false;
+
+    if (parsed.player) Object.assign(GameState.player, parsed.player);
+    if (parsed.time) Object.assign(GameState.time, parsed.time);
+    if (parsed.quest) Object.assign(GameState.quest, parsed.quest);
+    if (parsed.story) GameState.story = parsed.story;
+    if (parsed.profile) GameState.profile = parsed.profile;
+    if (parsed.boot) GameState.boot = parsed.boot;
+
+    GameState.currentServiceCustomer = parsed.currentServiceCustomer ?? null;
+    GameState.isPaused = !!parsed.isPaused;
+
+    ensureStoryState();
+    return true;
+  } catch (error) {
+    console.warn('Save data invalid; using default state.', error);
+    return false;
+  }
+}
+
+export function updateHUD() {
+  const hud = document.getElementById('hud');
+  if (!hud) return;
+
+  const moneyEl = document.getElementById('hud-money');
+  const repEl = document.getElementById('hud-rep');
+  const dayEl = document.getElementById('hud-day');
+  const hpEl = document.getElementById('hud-health');
+  const energyEl = document.getElementById('hud-energy');
+  const hungerEl = document.getElementById('hud-hunger');
+  const thirstEl = document.getElementById('hud-thirst');
+
+  if (moneyEl) moneyEl.textContent = formatRupiah(GameState.player.cash);
+  if (repEl) repEl.textContent = 'Rep ' + GameState.player.rep;
+  if (dayEl) dayEl.textContent = 'Hari ' + GameState.time.day;
+  if (hpEl) hpEl.textContent = 'HP ' + Math.max(0, Math.min(100, GameState.player.hp));
+  if (energyEl) energyEl.textContent = 'Energy ' + Math.max(0, Math.min(100, GameState.player.energy));
+  if (hungerEl) hungerEl.textContent = 'Lapar ' + Math.max(0, Math.min(100, GameState.player.hunger));
+  if (thirstEl) thirstEl.textContent = 'Haus ' + Math.max(0, Math.min(100, GameState.player.thirst));
 }
