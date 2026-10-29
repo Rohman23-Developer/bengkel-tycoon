@@ -3,432 +3,550 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Bengkel Tycoon - Game Simulasi Bengkel Motor</title>
+  <meta name="theme-color" content="#030712">
+  <title>Bengkel Tycoon 3D - Simulasi Bisnis & Kehidupan</title>
+  
+  <!-- Three.js Library Standalone -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
   <style>
-    * {
+    /* RESET TOTAL & VIEWPORT LOCKING */
+    *, *::before, *::after {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
       user-select: none;
       -webkit-user-select: none;
       -webkit-touch-callout: none;
-      touch-action: none;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
     }
-    body, html {
-      width: 100%;
-      height: 100%;
-      background-color: #0d1117;
-      overflow: hidden;
+    html, body {
+      position: fixed;
+      inset: 0;
+      width: 100vw; width: 100dvw;
+      height: 100vh; height: 100dvh;
+      overflow: hidden !important;
+      overscroll-behavior: none !important;
+      touch-action: none !important;
+      background: #000;
       display: flex;
       justify-content: center;
       align-items: center;
     }
-    #game-container {
+
+    /* 16:9 CONTAINER DENGAN SAFE AREA */
+    #game-viewport {
       position: relative;
-      width: 100%;
-      height: 100%;
-      max-width: 177.78vh; /* Menjaga rasio 16:9 */
+      width: 100vw; width: 100dvw;
+      height: 100vh; height: 100dvh;
+      max-width: 177.78vh; /* 16:9 */
       max-height: 56.25vw;
-      background: #000;
+      aspect-ratio: 16 / 9;
+      background: #020617;
       overflow: hidden;
-      box-shadow: 0 0 20px rgba(0,0,0,0.8);
+      box-shadow: 0 0 50px rgba(0, 0, 0, 0.95);
     }
-    canvas {
+    #three-canvas {
       width: 100%;
       height: 100%;
       display: block;
-      image-rendering: pixelated;
     }
+
+    /* WARNING ORIENTASI POTRAIT */
+    #orient-warning {
+      position: fixed;
+      inset: 0;
+      background: #090d16;
+      color: #f59e0b;
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 99999;
+      text-align: center;
+      padding: 24px;
+    }
+    #orient-warning svg {
+      width: 60px; height: 60px; fill: #f59e0b; margin-bottom: 16px;
+      animation: spinDevice 2s infinite ease-in-out;
+    }
+    @keyframes spinDevice { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(90deg); } }
+    @media (orientation: portrait) { #orient-warning { display: flex !important; } }
 
     /* UI LAYERS */
     .ui-layer {
       position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      inset: 0;
+      pointer-events: none;
+      display: none;
+    }
+    .ui-show { display: block !important; }
+    .interactive { pointer-events: auto !important; }
+
+    /* MENU UTAMA */
+    #menu-screen {
+      position: absolute;
+      inset: 0;
+      z-index: 50;
+      background: linear-gradient(135deg, rgba(3,7,18,0.7), rgba(15,23,42,0.95));
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    .menu-title-box {
+      position: absolute;
+      top: 24px; right: 28px;
+      text-align: right;
+    }
+    .menu-title-box h1 {
+      font-size: 34px;
+      font-weight: 900;
+      color: #f59e0b;
+      letter-spacing: 2px;
+      text-shadow: 2px 3px 0 #b45309, 0 0 25px rgba(245, 158, 11, 0.6);
+      line-height: 1;
+      text-transform: uppercase;
+    }
+    .menu-title-box p {
+      font-size: 11px;
+      font-weight: 700;
+      color: #94a3b8;
+      letter-spacing: 1.5px;
+      margin-top: 4px;
+      text-transform: uppercase;
+    }
+    .menu-btn-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 260px;
+      margin-top: 40px;
+    }
+    .btn-menu {
+      background: linear-gradient(135deg, #d97706, #b45309);
+      color: #fff;
+      border: 2px solid #f59e0b;
+      padding: 12px 18px;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      border-radius: 8px;
+      cursor: pointer;
+      text-transform: uppercase;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+      transition: all 0.15s ease;
+      text-align: center;
+    }
+    .btn-menu:active { transform: scale(0.96); filter: brightness(1.2); }
+    .btn-menu:disabled { background: #334155; border-color: #475569; color: #64748b; cursor: not-allowed; box-shadow: none; }
+
+    /* IN-GAME HUD */
+    #hud-screen {
+      position: absolute;
+      inset: 0;
       pointer-events: none;
     }
-    .interactive {
-      pointer-events: auto;
-    }
-
-    /* TOP HUD */
-    #top-hud {
+    .hud-topbar {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      padding: 8px 12px;
-      font-size: 13px;
+      padding: 10px 14px;
+      font-size: 12px;
       color: #fff;
-      text-shadow: 1px 1px 2px #000;
     }
-    .hud-box {
-      background: rgba(18, 22, 34, 0.85);
-      border: 1px solid #30363d;
+    .hud-card {
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid #334155;
       border-radius: 8px;
-      padding: 6px 12px;
-      backdrop-filter: blur(4px);
+      padding: 8px 12px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
     }
-    .hud-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 3px;
-    }
-    .hud-val {
-      font-weight: bold;
-    }
-    .val-cash { color: #2ecc71; font-size: 14px; }
-    .val-rep { color: #f1c40f; }
-    .progress-bar-bg {
-      width: 70px;
-      height: 8px;
-      background: #21262d;
+    .hud-row { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+    .val-cash { color: #10b981; font-weight: bold; font-size: 14px; }
+    .val-rep { color: #f59e0b; font-weight: bold; }
+
+    /* Vitals Progress Bars */
+    .bar-shell {
+      width: 60px; height: 7px;
+      background: #1e293b;
       border-radius: 4px;
       overflow: hidden;
-      border: 1px solid #484f58;
+      border: 1px solid #475569;
     }
-    .progress-fill {
-      height: 100%;
-      border-radius: 3px;
-      transition: width 0.3s;
-    }
-    .fill-hp { background: #e74c3c; }
-    .fill-energy { background: #f39c12; }
-    .fill-hunger { background: #e67e22; }
-    .fill-thirst { background: #3498db; }
+    .bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+    .fill-energy { background: #f59e0b; }
+    .fill-hunger { background: #ea580c; }
 
-    /* CONTROLS (ANDROID MOBILE) */
-    #mobile-controls {
+    /* Shop Open/Close Pill */
+    .shop-pill {
+      font-size: 10px; font-weight: 800;
+      padding: 3px 8px; border-radius: 12px;
+      cursor: pointer; border: 1px solid rgba(255,255,255,0.3);
+    }
+    .st-open { background: #16a34a; color: #fff; }
+    .st-closed { background: #dc2626; color: #fff; }
+
+    /* Active Quest Box */
+    #quest-card {
       position: absolute;
-      bottom: 12px;
-      left: 12px;
-      right: 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
+      top: 76px; left: 14px;
+      background: rgba(15, 23, 42, 0.92);
+      border-left: 4px solid #f59e0b;
+      border-radius: 0 8px 8px 0;
+      padding: 8px 12px;
+      max-width: 290px;
+      color: #fff;
+      font-size: 11px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+    #quest-card h4 { color: #f59e0b; font-size: 12px; margin-bottom: 2px; }
+
+    /* Interaction Prompt Floating */
+    #prompt-interact {
+      position: absolute;
+      bottom: 85px; left: 50%;
+      transform: translateX(-50%);
+      background: rgba(217, 119, 6, 0.95);
+      color: #fff;
+      padding: 7px 18px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: bold;
+      display: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+      border: 1px solid #fff;
+      white-space: nowrap;
+      pointer-events: none;
+      z-index: 60;
+    }
+
+    /* TOUCH CONTROLS (JOYSTICK SENTUH) */
+    #controls-layer {
+      position: absolute;
+      inset: 0;
       pointer-events: none;
     }
-    #joystick-area {
-      width: 130px;
-      height: 130px;
+    #joystick-base {
+      position: absolute;
+      bottom: 22px; left: 22px;
+      width: 120px; height: 120px;
       background: rgba(255, 255, 255, 0.08);
       border: 2px dashed rgba(255, 255, 255, 0.25);
       border-radius: 50%;
-      position: relative;
       pointer-events: auto;
     }
     #joystick-knob {
-      width: 54px;
-      height: 54px;
-      background: radial-gradient(circle, #e67e22, #d35400);
+      position: absolute;
+      top: 36px; left: 36px;
+      width: 48px; height: 48px;
+      background: radial-gradient(circle, #f59e0b, #b45309);
       border: 2px solid #fff;
       border-radius: 50%;
-      position: absolute;
-      top: 38px;
-      left: 38px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.6);
     }
-    .action-btn-group {
+    .action-group {
+      position: absolute;
+      bottom: 22px; right: 22px;
       display: flex;
       gap: 12px;
+      align-items: flex-end;
       pointer-events: auto;
     }
-    .btn-circle {
-      width: 65px;
-      height: 65px;
+    .hud-action-btn {
       border-radius: 50%;
       border: 2px solid rgba(255,255,255,0.7);
       color: #fff;
       font-weight: bold;
-      font-size: 13px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.6);
-      transition: transform 0.1s, filter 0.1s;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+      transition: transform 0.1s;
     }
-    .btn-circle:active {
-      transform: scale(0.92);
-      filter: brightness(1.2);
-    }
-    .btn-interact { background: linear-gradient(135deg, #e67e22, #b94a00); }
-    .btn-run { background: linear-gradient(135deg, #2980b9, #1c5980); }
-    .btn-sub { width: 50px; height: 50px; font-size: 11px; }
-
-    /* QUEST PROMPT */
-    #quest-tracker {
-      position: absolute;
-      top: 65px;
-      left: 12px;
-      background: rgba(18, 22, 34, 0.9);
-      border-left: 4px solid #f39c12;
-      padding: 8px 12px;
-      border-radius: 0 6px 6px 0;
-      color: #fff;
-      max-width: 250px;
-      font-size: 11px;
-    }
-    #quest-title { font-weight: bold; color: #f39c12; margin-bottom: 2px; }
+    .hud-action-btn:active { transform: scale(0.92); }
+    .btn-act-primary { width: 65px; height: 65px; background: linear-gradient(135deg, #d97706, #92400e); font-size: 13px; }
+    .btn-act-secondary { width: 48px; height: 48px; background: linear-gradient(135deg, #2563eb, #1d4ed8); font-size: 11px; }
 
     /* MODAL POPUPS */
     .modal-overlay {
       position: absolute;
-      top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0, 0, 0, 0.75);
-      backdrop-filter: blur(5px);
+      inset: 0;
+      background: rgba(3, 7, 18, 0.85);
+      backdrop-filter: blur(6px);
       display: none;
       justify-content: center;
       align-items: center;
       z-index: 100;
       pointer-events: auto;
     }
-    .modal-card {
-      background: #1c2128;
-      border: 2px solid #e67e22;
+    .modal-box {
+      background: #0f172a;
+      border: 2px solid #f59e0b;
       border-radius: 12px;
-      padding: 18px;
-      width: 85%;
-      max-width: 480px;
+      padding: 16px;
+      width: 90%;
+      max-width: 500px;
+      max-height: 85%;
+      display: flex;
+      flex-direction: column;
       color: #fff;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.9);
     }
-    .modal-title {
-      font-size: 18px;
-      font-weight: bold;
-      color: #e67e22;
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 8px;
       margin-bottom: 12px;
-      border-bottom: 1px solid #30363d;
-      padding-bottom: 6px;
     }
-    .modal-body { font-size: 13px; line-height: 1.5; margin-bottom: 16px; max-height: 250px; overflow-y: auto; }
-    .dialogue-speaker { font-weight: bold; color: #3498db; margin-bottom: 4px; }
-    .btn-group { display: flex; justify-content: flex-end; gap: 10px; }
+    .modal-header h3 { color: #f59e0b; font-size: 16px; font-weight: 800; }
+    .modal-body {
+      overflow-y: auto;
+      font-size: 13px;
+      line-height: 1.5;
+      padding-right: 4px;
+      flex: 1;
+    }
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 12px;
+      border-top: 1px solid #334155;
+      padding-top: 8px;
+    }
     .btn-ui {
-      background: #e67e22;
+      background: #d97706;
       color: #fff;
       border: none;
-      padding: 8px 18px;
+      padding: 8px 16px;
       border-radius: 6px;
-      font-weight: bold;
+      font-weight: 700;
+      font-size: 12px;
       cursor: pointer;
-      font-size: 13px;
     }
-    .btn-secondary { background: #30363d; }
     .btn-ui:active { transform: scale(0.96); }
+    .btn-ui-sec { background: #334155; }
 
-    /* MINIGAME SERVICE OVERLAY */
-    #service-overlay {
-      position: absolute;
-      top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(13, 17, 23, 0.95);
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 90;
-      color: #fff;
-      pointer-events: auto;
-    }
-    .service-card {
-      background: #161b22;
-      border: 2px solid #f39c12;
-      border-radius: 12px;
-      padding: 20px;
-      width: 90%;
-      max-width: 520px;
-      text-align: center;
-    }
-    .service-step-desc { font-size: 14px; margin-bottom: 15px; color: #cbd5e1; }
-    .timing-bar-container {
-      width: 100%;
-      height: 32px;
-      background: #0d1117;
-      border: 2px solid #484f58;
-      border-radius: 8px;
+    /* MINIGAME TIMING BAR SERVIS */
+    .gauge-track {
+      width: 100%; height: 32px;
+      background: #020617;
+      border: 2px solid #475569;
+      border-radius: 6px;
       position: relative;
-      margin: 15px 0;
+      margin: 14px 0;
       overflow: hidden;
     }
-    .target-zone {
+    .gauge-sweetspot {
       position: absolute;
       height: 100%;
-      background: rgba(46, 204, 113, 0.45);
-      border-left: 2px solid #2ecc71;
-      border-right: 2px solid #2ecc71;
+      background: rgba(34, 197, 94, 0.5);
+      border-left: 2px solid #22c55e;
+      border-right: 2px solid #22c55e;
     }
-    .timing-cursor {
+    .gauge-needle {
       position: absolute;
-      top: 0;
-      width: 6px;
-      height: 100%;
-      background: #e74c3c;
-      box-shadow: 0 0 8px #ff4757;
+      top: 0; width: 6px; height: 100%;
+      background: #ef4444;
+      box-shadow: 0 0 8px #ef4444;
     }
 
-    /* TOAST / NOTIFICATION */
-    #toast {
+    .item-card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* TOAST NOTIFIKASI */
+    #toast-bar {
       position: absolute;
-      bottom: 90px;
-      left: 50%;
+      top: 18px; left: 50%;
       transform: translateX(-50%);
-      background: rgba(33, 38, 45, 0.95);
-      border: 1px solid #e67e22;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid #f59e0b;
       color: #fff;
-      padding: 8px 18px;
+      padding: 8px 20px;
       border-radius: 20px;
-      font-size: 13px;
+      font-size: 12px;
+      font-weight: 600;
       pointer-events: none;
       opacity: 0;
       transition: opacity 0.3s;
-      z-index: 110;
-    }
-
-    /* INTERACTION PROMPT ICON */
-    #interaction-hint {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -120%);
-      background: rgba(230, 126, 34, 0.95);
-      color: #fff;
-      padding: 4px 10px;
-      border-radius: 12px;
-      font-size: 11px;
-      font-weight: bold;
-      display: none;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.6);
-      pointer-events: none;
-      white-space: nowrap;
+      z-index: 250;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.6);
     }
   </style>
 </head>
 <body>
 
-<div id="game-container">
-  <!-- Canvas Game View -->
-  <canvas id="gameCanvas" width="960" height="540"></canvas>
+<!-- PERINGATAN ORIENTASI -->
+<div id="orient-warning">
+  <svg viewBox="0 0 24 24"><path d="M16.48 2.52c3.27 1.55 5.61 4.72 5.97 8.48h1.5C23.44 4.84 18.29 0 12 0l-.66.03 3.81 3.81 1.33-1.32zM7.52 21.48C4.25 19.93 1.91 16.76 1.55 13H.05C.56 19.16 5.71 24 12 24l.66-.03-3.81-3.81-1.33 1.32zM6 7v10c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2H8c-1.1 0-2 .9-2 2z"/></svg>
+  <h2>PUTAR HP KE LANDSCAPE</h2>
+  <p style="margin-top:8px; font-size:13px; color:#cbd5e1;">Bengkel Tycoon 3D dirancang khusus untuk layar 16:9.</p>
+</div>
 
-  <!-- Interactive Hint Floating -->
-  <div id="interaction-hint">Tekan (A) / Spasi</div>
+<!-- VIEWPORT CONTAINER 16:9 -->
+<div id="game-viewport">
+  <!-- 3D Three.js WebGL Canvas -->
+  <canvas id="three-canvas"></canvas>
 
-  <!-- Top In-Game HUD -->
-  <div class="ui-layer">
-    <div id="top-hud">
-      <!-- Left: Identity & Money -->
-      <div class="hud-box">
-        <div class="hud-row">
-          <span style="font-size:11px; color:#8b949e;">Bengkel:</span>
-          <span id="hud-shop-name" class="hud-val" style="color:#e67e22;">Bengkel Berkah</span>
-        </div>
-        <div class="hud-row">
-          <span style="font-size:11px; color:#8b949e;">Kas:</span>
-          <span id="hud-cash" class="hud-val val-cash">Rp 15.000.000</span>
-        </div>
-        <div class="hud-row">
-          <span style="font-size:11px; color:#8b949e;">Waktu:</span>
-          <span id="hud-clock" class="hud-val">Hari 1 - 08:00 WIB</span>
-        </div>
-      </div>
+  <!-- PROMPT INTERAKSI MENGAMBANG -->
+  <div id="prompt-interact">[E] / Tekan Aksi</div>
 
-      <!-- Right: Vitals -->
-      <div class="hud-box">
-        <div class="hud-row">
-          <span style="font-size:11px; width:45px;">Darah</span>
-          <div class="progress-bar-bg"><div id="bar-hp" class="progress-fill fill-hp" style="width:75%;"></div></div>
-          <span style="font-size:11px; width:45px; margin-left:8px;">Energi</span>
-          <div class="progress-bar-bg"><div id="bar-energy" class="progress-fill fill-energy" style="width:90%;"></div></div>
-        </div>
-        <div class="hud-row">
-          <span style="font-size:11px; width:45px;">Lapar</span>
-          <div class="progress-bar-bg"><div id="bar-hunger" class="progress-fill fill-hunger" style="width:80%;"></div></div>
-          <span style="font-size:11px; width:45px; margin-left:8px;">Haus</span>
-          <div class="progress-bar-bg"><div id="bar-thirst" class="progress-fill fill-thirst" style="width:85%;"></div></div>
-        </div>
-        <div class="hud-row" style="justify-content: flex-end; margin-top:2px;">
-          <span style="font-size:11px; color:#8b949e;">Reputasi: <span id="hud-rep" class="val-rep">0</span> ★</span>
-        </div>
-      </div>
+  <!-- SCREEN 1: MENU UTAMA -->
+  <div id="menu-screen" class="ui-layer ui-show interactive">
+    <div class="menu-title-box">
+      <h1>BENGKEL TYCOON</h1>
+      <p>3D Indonesian Life & Business Simulator</p>
     </div>
-
-    <!-- Active Quest Tracker -->
-    <div id="quest-tracker">
-      <div id="quest-title">Misi: Bab 1 - Langkah Pertama</div>
-      <div id="quest-desc">Bicaralah dengan Om Danu (Mekanik Senior) di bengkel seberang.</div>
+    <div class="menu-btn-group">
+      <button class="btn-menu" id="btn-start-game">MULAI</button>
+      <button class="btn-menu" id="btn-continue-game" disabled>LANJUTKAN GAME</button>
+      <button class="btn-menu" id="btn-settings-game">SETTING</button>
     </div>
   </div>
 
-  <!-- Touch Controls (Android Phone) -->
-  <div class="ui-layer" style="pointer-events:none;">
-    <div id="mobile-controls">
-      <!-- Virtual Joystick -->
-      <div id="joystick-area">
+  <!-- SCREEN 2: IN-GAME HUD -->
+  <div id="hud-screen" class="ui-layer">
+    <div class="hud-topbar">
+      <!-- Info Keuangan & Bengkel -->
+      <div class="hud-card">
+        <div class="hud-row">
+          <span style="font-weight:bold; color:#f59e0b;" id="hud-shop-name">Bengkel Arga Motor</span>
+          <div id="btn-shop-status" class="shop-pill st-open interactive">BUKA</div>
+        </div>
+        <div class="hud-row">
+          <span>Kas: <span id="hud-cash" class="val-cash">Rp 15.000.000</span></span>
+          <span style="margin-left:8px;">Rep: <span id="hud-rep" class="val-rep">0</span> ★</span>
+        </div>
+        <div class="hud-row" style="color:#94a3b8; font-size:11px;">
+          <span id="hud-clock">Hari 1 - 08:00 WIB</span>
+        </div>
+      </div>
+
+      <!-- Vital Bar & Menu Tabs -->
+      <div class="hud-card">
+        <div class="hud-row">
+          <span style="font-size:11px; width:45px;">Energi</span>
+          <div class="bar-shell"><div id="bar-energy" class="bar-fill fill-energy" style="width:90%;"></div></div>
+          <span style="font-size:11px; width:45px; margin-left:8px;">Lapar</span>
+          <div class="bar-shell"><div id="bar-hunger" class="bar-fill fill-hunger" style="width:80%;"></div></div>
+        </div>
+        <div class="hud-row" style="margin-top:6px; gap:6px;">
+          <button class="btn-ui btn-ui-sec interactive" id="btn-tab-save" style="padding:4px 8px; font-size:10px;">💾 Simpan</button>
+          <button class="btn-ui btn-ui-sec interactive" id="btn-tab-help" style="padding:4px 8px; font-size:10px;">ℹ️ Bantuan</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Quest Card -->
+    <div id="quest-card">
+      <h4 id="quest-title">Misi: Bab 1 - Langkah Pertama</h4>
+      <p id="quest-desc">Bicaralah dengan Om Danu di depan bengkel seberang jalan.</p>
+    </div>
+
+    <!-- Touch Controls -->
+    <div id="controls-layer">
+      <div id="joystick-base">
         <div id="joystick-knob"></div>
       </div>
-
-      <!-- Action Buttons -->
-      <div class="action-btn-group">
-        <div id="btn-save" class="btn-circle btn-sub" style="background:#2c3e50;">💾<span style="font-size:9px;">Simpan</span></div>
-        <div id="btn-run" class="btn-circle btn-run btn-sub">⚡<span style="font-size:9px;">Lari</span></div>
-        <div id="btn-interact" class="btn-circle btn-interact">A<span style="font-size:9px;">Aksi</span></div>
+      <div class="action-group">
+        <div class="hud-action-btn btn-act-secondary" id="btn-touch-sprint">⚡<span style="font-size:9px;">Lari</span></div>
+        <div class="hud-action-btn btn-act-primary" id="btn-touch-action">A<span style="font-size:9px;">Aksi</span></div>
       </div>
     </div>
   </div>
 
-  <!-- Dialogue Modal -->
-  <div id="dialogue-modal" class="modal-overlay">
-    <div class="modal-card">
-      <div class="dialogue-speaker" id="dialogue-name">Nama NPC</div>
-      <div class="modal-body" id="dialogue-text">Isi percakapan di sini...</div>
-      <div class="btn-group" id="dialogue-actions">
-        <button class="btn-ui" id="btn-dialogue-next">Lanjut</button>
+  <!-- MODAL: PERCAKAPAN NPC -->
+  <div id="modal-dialog" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="diag-name">Nama Karakter</h3>
+      </div>
+      <div class="modal-body" id="diag-body">Isi percakapan...</div>
+      <div class="modal-footer" id="diag-footer">
+        <button class="btn-ui" onclick="closeModals()">Tutup</button>
       </div>
     </div>
   </div>
 
-  <!-- Service Minigame Modal -->
-  <div id="service-overlay">
-    <div class="service-card">
-      <h2 style="color:#e67e22; margin-bottom: 8px;">SERVIS: GANTI OLI MESIN</h2>
-      <p id="service-step-title" style="font-weight:bold; color:#f1c40f;">Tahap 1: Lepas Baut Kuras Oli</p>
-      <p id="service-instruction" class="service-step-desc">Tekan tombol AKSI saat jarum tepat berada di area hijau!</p>
-
-      <div class="timing-bar-container">
-        <div class="target-zone" id="service-target" style="left: 40%; width: 25%;"></div>
-        <div class="timing-cursor" id="service-cursor" style="left: 0%;"></div>
+  <!-- MODAL: TOKO ONDERDIL PAK TEJO -->
+  <div id="modal-shop" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Toko Onderdil Pak Tejo</h3>
+        <button class="btn-ui btn-ui-sec" onclick="closeModals()">✕</button>
       </div>
-
-      <div style="margin-top: 15px;">
-        <button class="btn-ui" id="btn-service-action" style="padding: 12px 30px; font-size:15px;">Terapkan Kunci Sok</button>
+      <div class="modal-body" id="shop-catalog">
+        <!-- Injeksi JS -->
       </div>
     </div>
   </div>
 
-  <!-- Notification Toast -->
-  <div id="toast">Pemberitahuan Game</div>
+  <!-- MODAL: MINIGAME SERVIS MOTOR -->
+  <div id="modal-repair" class="modal-overlay">
+    <div class="modal-box" style="max-width:520px;">
+      <div class="modal-header">
+        <h3 id="repair-title">Servis Motor Bebek - Mas Budi</h3>
+      </div>
+      <div class="modal-body">
+        <p><b>Keluhan:</b> Mesin cepat panas dan tarikan berat.</p>
+        <p><b>Diagnosis:</b> <span style="color:#38bdf8;">Oli mesin gosong & encer. Perlu dikuras dan diganti baru.</span></p>
+        <p style="font-size:11px; color:#cbd5e1; margin-top:4px;">💡 <i>Edukasi Otomotif:</i> Mengganti oli tepat waktu menjaga keawetan dinding liner silinder dan ring piston.</p>
+
+        <h4 id="repair-step-name" style="color:#f59e0b; margin-top:10px;">Tahap 1: Buka Baut Tap Pembuangan Oli</h4>
+        <p style="font-size:11px; color:#94a3b8;">Tekan tombol saat jarum merah tepat di zona hijau!</p>
+
+        <div class="gauge-track">
+          <div class="gauge-sweetspot" id="gauge-target" style="left:35%; width:30%;"></div>
+          <div class="gauge-needle" id="gauge-needle" style="left:0%;"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ui btn-ui-sec" onclick="cancelRepair()">Batalkan</button>
+        <button class="btn-ui" id="btn-repair-press">Terapkan Kunci Sok</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST ALERT -->
+  <div id="toast-bar">Pemberitahuan</div>
 </div>
 
 <script>
 /**
- * BENGKEL TYCOON - CORE ENGINE SCRIPT (TAHAP 1 VERTICAL SLICE)
+ * ===================================================================
+ * BENGKEL TYCOON 3D — CORE ENGINE (AUDITED & BUG-FREE RUNTIME)
+ * ===================================================================
  */
 
-// --- 1. AUDIO SYNTHESIZER (Web Audio API) ---
-class SoundSynth {
+// --- 1. WEB AUDIO SYNTHESIZER ---
+class AudioEngine {
   constructor() {
     this.ctx = null;
   }
   init() {
     if (!this.ctx) {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      this.ctx = new AudioCtx();
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AudioContextClass();
+    }
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume();
     }
   }
-  playTone(freq, type = 'sine', duration = 0.15, vol = 0.1) {
+  play(freq, type = 'sine', duration = 0.1, vol = 0.1) {
     if (!this.ctx) return;
     try {
       const osc = this.ctx.createOscillator();
@@ -443,38 +561,33 @@ class SoundSynth {
       osc.stop(this.ctx.currentTime + duration);
     } catch(e) {}
   }
-  sndInteract() { this.playTone(520, 'triangle', 0.1, 0.12); }
-  sndCash() {
-    this.playTone(987, 'sine', 0.1, 0.15);
-    setTimeout(() => this.playTone(1318, 'sine', 0.25, 0.15), 90);
+  btn() { this.play(550, 'triangle', 0.08, 0.08); }
+  wrench() { this.play(200, 'square', 0.1, 0.08); }
+  cash() {
+    this.play(880, 'sine', 0.09, 0.12);
+    setTimeout(() => this.play(1320, 'sine', 0.2, 0.12), 80);
   }
-  sndWrench() { this.playTone(180, 'square', 0.12, 0.08); }
-  sndSuccess() {
-    this.playTone(440, 'sine', 0.1, 0.1);
-    setTimeout(() => this.playTone(554, 'sine', 0.1, 0.1), 80);
-    setTimeout(() => this.playTone(659, 'sine', 0.2, 0.12), 160);
+  success() {
+    this.play(523, 'sine', 0.09, 0.1);
+    setTimeout(() => this.play(659, 'sine', 0.09, 0.1), 80);
+    setTimeout(() => this.play(784, 'sine', 0.2, 0.12), 160);
   }
-  sndFootstep() { this.playTone(90, 'sine', 0.04, 0.03); }
 }
-const audio = new SoundSynth();
+const audio = new AudioEngine();
 
-// --- 2. GAME STATE & ECONOMY ---
-const SAVE_KEY = "BENGKEL_TYCOON_SAVE_V1";
+// --- 2. GAME STATE & SAVE SYSTEM ---
+const SAVE_KEY = "BENGKEL_TYCOON_3D_SAVE_V1";
 const GameState = {
   player: {
-    name: "Rian",
-    shopName: "Bengkel Berkah",
+    name: "Arga",
+    shopName: "Bengkel Arga Motor",
     cash: 15000000, // Rp 15.000.000 modal awal
     rep: 0,
-    hp: 75,         // Kondisi kesehatan kurang baik
     energy: 90,
     hunger: 80,
-    thirst: 85,
-    x: 480,
-    y: 290,
-    speed: 150,
-    isSprinting: false,
-    hasBasicTools: false
+    hasBasicTools: false,
+    hasOilStock: false,
+    isSprinting: false
   },
   time: {
     day: 1,
@@ -482,32 +595,38 @@ const GameState = {
     minute: 0,
     timer: 0
   },
+  shop: {
+    isOpen: true
+  },
   quest: {
     chapter: 1,
     step: 0,
     title: "Bab 1: Langkah Pertama",
-    desc: "Bicaralah dengan Om Danu (Mekanik Senior) di depan rumahnya."
+    desc: "Bicaralah dengan Om Danu di seberang jalan untuk meminta arahan."
   },
-  currentServiceCustomer: null,
   isPaused: false
 };
 
-function formatRupiah(num) {
-  return "Rp " + Math.floor(num).toLocaleString('id-ID');
+function formatRupiah(val) {
+  return "Rp " + Math.floor(val).toLocaleString('id-ID');
 }
 
 function showToast(msg) {
-  const toast = document.getElementById('toast');
-  toast.innerText = msg;
-  toast.style.opacity = '1';
-  clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => { toast.style.opacity = '0'; }, 2600);
+  const el = document.getElementById('toast-bar');
+  el.innerText = msg;
+  el.style.opacity = '1';
+  clearTimeout(el.timer);
+  el.timer = setTimeout(() => { el.style.opacity = '0'; }, 2400);
 }
 
 function saveGame() {
   localStorage.setItem(SAVE_KEY, JSON.stringify(GameState));
-  showToast("Permainan berhasil disimpan!");
-  audio.sndSuccess();
+  showToast("Progress tersimpan rapi!");
+  audio.success();
+}
+
+function hasSave() {
+  return localStorage.getItem(SAVE_KEY) !== null;
 }
 
 function loadGame() {
@@ -516,369 +635,522 @@ function loadGame() {
     try {
       const data = JSON.parse(raw);
       Object.assign(GameState, data);
-      showToast("Data permainan dimuat!");
       return true;
-    } catch(e) {
-      console.error(e);
-    }
+    } catch(e) { console.error(e); }
   }
   return false;
 }
 
-// --- 3. WORLD MAP & COLLISION ---
-const WORLD_WIDTH = 960;
-const WORLD_HEIGHT = 540;
+// --- 3. THREE.JS 3D SCENE & ENVIRONMENT SETUP ---
+const viewportContainer = document.getElementById('game-viewport');
+const canvas = document.getElementById('three-canvas');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb); // Langit siang
+scene.fog = new THREE.FogExp2(0x87ceeb, 0.015);
 
-// Solid structures (Bounding boxes: x, y, w, h)
-const solidBuildings = [
-  { x: 30, y: 30, w: 260, h: 170, label: "Bengkel Senior Om Danu", color: "#34495e" },
-  { x: 350, y: 30, w: 260, h: 170, label: "Rumah & Halaman Bengkelmu", color: "#d35400" },
-  { x: 670, y: 30, w: 260, h: 170, label: "Toko Suku Cadang & Warung", color: "#27ae60" }
-];
+// Camera
+const camera = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-// Interactive points
+// Lighting
+const hemiLight = new THREE.HemisphereLight(0xffffff, 0x334155, 0.7);
+scene.add(hemiLight);
+
+const sunLight = new THREE.DirectionalLight(0xfffaed, 0.85);
+sunLight.position.set(25, 40, 20);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.width = 1024;
+sunLight.shadow.mapSize.height = 1024;
+sunLight.shadow.camera.near = 0.5;
+sunLight.shadow.camera.far = 120;
+const d = 30;
+sunLight.shadow.camera.left = -d;
+sunLight.shadow.camera.right = d;
+sunLight.shadow.camera.top = d;
+sunLight.shadow.camera.bottom = -d;
+scene.add(sunLight);
+
+// Ground (Rumput & Jalan Aspal Nusantara)
+const groundGeo = new THREE.PlaneGeometry(160, 160);
+const groundMat = new THREE.MeshStandardMaterial({ color: 0x335c38, roughness: 0.9 });
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// Jalan Aspal Utama
+const roadGeo = new THREE.PlaneGeometry(140, 14);
+const roadMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.8 });
+const road = new THREE.Mesh(roadGeo, roadMat);
+road.rotation.x = -Math.PI / 2;
+road.position.set(0, 0.02, 0);
+road.receiveShadow = true;
+scene.add(road);
+
+// Marka Jalan Putus-Putus
+for (let x = -60; x <= 60; x += 6) {
+  const stripe = new THREE.Mesh(
+    new THREE.PlaneGeometry(3.5, 0.35),
+    new THREE.MeshBasicMaterial({ color: 0xffffff })
+  );
+  stripe.rotation.x = -Math.PI / 2;
+  stripe.position.set(x, 0.03, 0);
+  scene.add(stripe);
+}
+
+// Helper Pembuatan Bangunan Prosedural Ber-Interior
+const solidColliders = [];
+function createBuilding(x, z, w, d, h, wallColor, label, hasDoor = true) {
+  const group = new THREE.Group();
+  group.position.set(x, 0, z);
+
+  const wallMat = new THREE.MeshStandardMaterial({ color: wallColor, roughness: 0.7 });
+  const roofMat = new THREE.MeshStandardMaterial({ color: 0x991b1b, roughness: 0.6 });
+
+  // Dinding Belakang
+  const backWall = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.4), wallMat);
+  backWall.position.set(0, h / 2, -d / 2);
+  backWall.castShadow = true; backWall.receiveShadow = true;
+  group.add(backWall);
+
+  // Dinding Kiri & Kanan
+  const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.4, h, d), wallMat);
+  leftWall.position.set(-w / 2, h / 2, 0);
+  leftWall.castShadow = true; leftWall.receiveShadow = true;
+  group.add(leftWall);
+
+  const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.4, h, d), wallMat);
+  rightWall.position.set(w / 2, h / 2, 0);
+  rightWall.castShadow = true; rightWall.receiveShadow = true;
+  group.add(rightWall);
+
+  // Lantai Dalam
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(w - 0.2, d - 0.2),
+    new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.5 })
+  );
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = 0.05;
+  floor.receiveShadow = true;
+  group.add(floor);
+
+  // Dinding Depan dengan Bukaan Pintu Lebar
+  if (hasDoor) {
+    const frontPartW = (w - 3.5) / 2;
+    const frontLeft = new THREE.Mesh(new THREE.BoxGeometry(frontPartW, h, 0.4), wallMat);
+    frontLeft.position.set(-w / 2 + frontPartW / 2, h / 2, d / 2);
+    frontLeft.castShadow = true; group.add(frontLeft);
+
+    const frontRight = new THREE.Mesh(new THREE.BoxGeometry(frontPartW, h, 0.4), wallMat);
+    frontRight.position.set(w / 2 - frontPartW / 2, h / 2, d / 2);
+    frontRight.castShadow = true; group.add(frontRight);
+  }
+
+  // Atap Kanopi
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(w + 1, 0.5, d + 1.5), roofMat);
+  roof.position.set(0, h + 0.2, 0);
+  roof.castShadow = true;
+  group.add(roof);
+
+  // Plang Papan Nama Toko
+  const sign = new THREE.Mesh(
+    new THREE.BoxGeometry(w * 0.7, 0.9, 0.2),
+    new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.3 })
+  );
+  sign.position.set(0, h - 0.2, d / 2 + 0.25);
+  group.add(sign);
+
+  scene.add(group);
+
+  // Collider Bounding
+  solidColliders.push({
+    minX: x - w / 2 - 0.4, maxX: x + w / 2 + 0.4,
+    minZ: z - d / 2 - 0.4, maxZ: z + d / 2 + 0.4,
+    doorZ: z + d / 2, doorX: x
+  });
+
+  return group;
+}
+
+// Buat Bangunan Kota Nusantara Jaya
+// 1. Bengkel Utama Pemain (Arga Motor)
+const playerShop = createBuilding(0, 16, 12, 10, 4.2, 0xd97706, "BENGKEL ARGA MOTOR");
+
+// Meja Kerja & Rak Perkakas di Dalam Bengkel Arga
+const workbench = new THREE.Mesh(
+  new THREE.BoxGeometry(3.5, 1.1, 1.2),
+  new THREE.MeshStandardMaterial({ color: 0x334155 })
+);
+workbench.position.set(0, 0.55, 13);
+scene.add(workbench);
+
+// 2. Rumah Karakter Utama (Arga) di samping bengkel
+const playerHome = createBuilding(16, 16, 10, 9, 3.8, 0x0284c7, "RUMAH ARGA");
+// Kasur Tidur di Dalam Rumah
+const bedMesh = new THREE.Mesh(
+  new THREE.BoxGeometry(2.2, 0.6, 3),
+  new THREE.MeshStandardMaterial({ color: 0x38bdf8 })
+);
+bedMesh.position.set(18, 0.3, 14);
+scene.add(bedMesh);
+
+// 3. Bengkel Senior Om Danu (Di seberang jalan)
+createBuilding(-16, -16, 11, 9, 4.0, 0x475569, "BENGKEL OM DANU");
+
+// 4. Toko Onderdil & Suku Cadang Pak Tejo
+createBuilding(16, -16, 11, 9, 4.0, 0x059669, "ONDERDIL PAK TEJO");
+
+// --- 4. KARAKTER UTAMA & NPC ---
+// Karakter Utama (Arga) - Model Prosedural Berproporsi
+const playerGroup = new THREE.Group();
+playerGroup.position.set(0, 0, 8);
+
+// Kaki
+const legMat = new THREE.MeshStandardMaterial({ color: 0x1e293b });
+const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.8), legMat);
+legL.position.set(-0.2, 0.4, 0); legL.castShadow = true;
+const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.8), legMat);
+legR.position.set(0.2, 0.4, 0); legR.castShadow = true;
+playerGroup.add(legL); playerGroup.add(legR);
+
+// Badan (Wearpack Montir Oranye)
+const bodyMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.6 });
+const bodyMesh = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.8, 0.35), bodyMat);
+bodyMesh.position.y = 1.1; bodyMesh.castShadow = true;
+playerGroup.add(bodyMesh);
+
+// Kepala & Rambut
+const headMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, roughness: 0.8 });
+const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.24, 16, 16), headMat);
+headMesh.position.y = 1.68; headMesh.castShadow = true;
+playerGroup.add(headMesh);
+
+const hairMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.5 });
+const hairMesh = new THREE.Mesh(new THREE.SphereGeometry(0.25, 12, 12, 0, Math.PI * 2, 0, Math.PI / 2), hairMat);
+hairMesh.position.y = 1.76;
+playerGroup.add(hairMesh);
+
+scene.add(playerGroup);
+
+// Helper NPC Prosedural
+function createNPC(x, z, shirtColor, name) {
+  const npcGroup = new THREE.Group();
+  npcGroup.position.set(x, 0, z);
+
+  const nLegs = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.8, 0.25), new THREE.MeshStandardMaterial({ color: 0x334155 }));
+  nLegs.position.y = 0.4; nLegs.castShadow = true;
+  npcGroup.add(nLegs);
+
+  const nTorso = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 0.35), new THREE.MeshStandardMaterial({ color: shirtColor }));
+  nTorso.position.y = 1.1; nTorso.castShadow = true;
+  npcGroup.add(nTorso);
+
+  const nHead = new THREE.Mesh(new THREE.SphereGeometry(0.22, 14, 14), new THREE.MeshStandardMaterial({ color: 0xfcd34d }));
+  nHead.position.y = 1.65; nHead.castShadow = true;
+  npcGroup.add(nHead);
+
+  scene.add(npcGroup);
+  return { group: npcGroup, name: name, x: x, z: z };
+}
+
+const npcDanu = createNPC(-16, -11, 0x2563eb, "Om Danu (Senior)");
+const npcTejo = createNPC(16, -11, 0x10b981, "Pak Tejo (Toko Onderdil)");
+
+// Motor Bebek Pelanggan (Mas Budi)
+const bikeGroup = new THREE.Group();
+bikeGroup.position.set(0, 0, 7.5);
+bikeGroup.visible = false; // Muncul saat quest aktif
+
+const frameMat = new THREE.MeshStandardMaterial({ color: 0xdc2626 });
+const wheelMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.9 });
+
+const bikeBody = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 1.8), frameMat);
+bikeBody.position.y = 0.6; bikeBody.castShadow = true;
+bikeGroup.add(bikeBody);
+
+const wheelF = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.15, 16), wheelMat);
+wheelF.rotation.z = Math.PI / 2; wheelF.position.set(0, 0.35, 0.8); wheelF.castShadow = true;
+const wheelB = wheelF.clone(); wheelB.position.z = -0.8;
+bikeGroup.add(wheelF); bikeGroup.add(wheelB);
+
+scene.add(bikeGroup);
+
+// --- 5. INTERACTABLES REGISTRY & INTERACTION SYSTEM ---
 const interactables = [
   {
-    id: "danu",
-    x: 160, y: 220, radius: 45,
-    name: "Om Danu (Mekanik Senior)",
-    type: "npc",
-    onInteract: () => interactWithDanu()
+    id: "danu", name: "Om Danu",
+    x: -16, z: -11, radius: 2.8,
+    action: () => talkToDanu()
   },
   {
-    id: "sparepart_shop",
-    x: 740, y: 220, radius: 45,
-    name: "Pak Tejo (Toko Onderdil)",
-    type: "npc",
-    onInteract: () => interactWithTejo()
+    id: "tejo", name: "Pak Tejo (Toko Onderdil)",
+    x: 16, z: -11, radius: 2.8,
+    action: () => openPartsShop()
   },
   {
-    id: "warung",
-    x: 850, y: 220, radius: 45,
-    name: "Warung Bu Siti",
-    type: "shop",
-    onInteract: () => interactWithWarung()
+    id: "bed", name: "Kasur Arga (Tidur)",
+    x: 18, z: 14, radius: 2.2,
+    action: () => sleepAndRest()
   },
   {
-    id: "bed",
-    x: 390, y: 190, radius: 35,
-    name: "Kasur Istirahat",
-    type: "rest",
-    onInteract: () => interactWithBed()
-  },
-  {
-    id: "customer_bike",
-    x: 480, y: 230, radius: 45,
-    name: "Motor Pelanggan (Mas Budi)",
-    type: "service",
-    active: false,
-    onInteract: () => startServiceMinigame()
+    id: "bike_budi", name: "Motor Mas Budi (Mulai Servis)",
+    x: 0, z: 7.5, radius: 2.4,
+    action: () => startRepairMinigame()
   }
 ];
 
-// --- 4. NPC DIALOGUE & QUEST LOGIC ---
-const dialogueModal = document.getElementById('dialogue-modal');
-const dialogueName = document.getElementById('dialogue-name');
-const dialogueText = document.getElementById('dialogue-text');
-const dialogueActions = document.getElementById('dialogue-actions');
+// --- 6. DIALOG, QUEST & MINIGAME LOGIC ---
+const modalDialog = document.getElementById('modal-dialog');
+const diagName = document.getElementById('diag-name');
+const diagBody = document.getElementById('diag-body');
+const diagFooter = document.getElementById('diag-footer');
 
-function openDialogue(name, text, actions = [{ label: "Mengerti", cb: closeDialogue }]) {
-  audio.sndInteract();
-  dialogueName.innerText = name;
-  dialogueText.innerHTML = text;
-  dialogueActions.innerHTML = "";
-  actions.forEach(act => {
+function openDialog(name, text, actions = [{ label: "Tutup", cb: closeModals }]) {
+  audio.btn();
+  diagName.innerText = name;
+  diagBody.innerHTML = text;
+  diagFooter.innerHTML = "";
+  actions.forEach(a => {
     const btn = document.createElement('button');
     btn.className = "btn-ui";
-    btn.innerText = act.label;
-    btn.onclick = () => {
-      audio.sndInteract();
-      act.cb();
-    };
-    dialogueActions.appendChild(btn);
+    btn.innerText = a.label;
+    btn.onclick = () => { audio.btn(); a.cb(); };
+    diagFooter.appendChild(btn);
   });
-  dialogueModal.style.display = 'flex';
+  modalDialog.style.display = 'flex';
   GameState.isPaused = true;
 }
 
-function closeDialogue() {
-  dialogueModal.style.display = 'none';
+function closeModals() {
+  document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none');
   GameState.isPaused = false;
 }
 
-function interactWithDanu() {
+function talkToDanu() {
   if (GameState.quest.chapter === 1 && GameState.quest.step === 0) {
-    openDialogue(
-      "Om Danu",
-      `Halo ${GameState.player.name}! Selamat atas kelulusanmu dari SMK. Bagaimana kondisi kepalamu, masih pusing?<br><br>
-      Dengar, membuka usaha sendiri itu butuh ketekunan, apalagi kamu memulai dengan modal <b>${formatRupiah(GameState.player.cash)}</b>.
-      Langkah pertamamu: Datanglah ke <b>Toko Onderdil Pak Tejo</b> di ujung jalan, belilah <b>Satu Set Kunci & Perkakas Dasar</b>. Tanpa itu kamu belum bisa bongkar motor.`,
-      [
-        {
-          label: "Siap, Om Danu! Saya ke sana.",
-          cb: () => {
-            closeDialogue();
-            GameState.quest.step = 1;
-            GameState.quest.desc = "Beli 'Set Kunci Dasar' (Rp 750.000) di Toko Pak Tejo.";
-            updateHUD();
-          }
+    openDialog(
+      "Om Danu (Mekanik Senior)",
+      `Halo Arga! Selamat atas dibukanya <b>${GameState.player.shopName}</b>.<br><br>
+      Kondisi badanmu yang gampang pusing harus dijaga, jangan begadang sembarangan. Tabungan <b>${formatRupiah(GameState.player.cash)}</b> adalah modal awalmu.<br><br>
+      Langkah pertamamu: Pergilah ke <b>Toko Onderdil Pak Tejo</b> di seberang timur, beli <b>Set Kunci Pas & Sok Dasar (Rp 750.000)</b> agar kamu bisa mulai membongkar motor.`,
+      [{
+        label: "Baik Om, saya ke Toko Pak Tejo sekarang!",
+        cb: () => {
+          closeModals();
+          GameState.quest.step = 1;
+          GameState.quest.desc = "Beli 'Set Kunci Dasar' (Rp 750.000) di Toko Pak Tejo.";
+          updateHUD();
+          showToast("Misi Diperbarui: Kunjungi Toko Pak Tejo");
         }
-      ]
+      }]
     );
   } else if (GameState.quest.chapter === 1 && GameState.quest.step === 2) {
-    openDialogue(
+    openDialog(
       "Om Danu",
-      `Bagus! Kunci pas dan tang sudah di tangan. Tadi <b>Mas Budi</b> mengabari motorku katanya oli motor bebeknya sudah hitam pekat dan tarikannya berat.<br><br>
-      Saya sarankan dia ke bengkelmu <b>${GameState.player.shopName}</b>. Sana pulang ke halaman depan bengkelmu dan layani pelanggan pertamamu!`,
-      [
-        {
-          label: "Baik, saya akan layani dengan teliti!",
-          cb: () => {
-            closeDialogue();
-            GameState.quest.chapter = 2;
-            GameState.quest.step = 0;
-            GameState.quest.title = "Bab 2: Pelanggan Pertama";
-            GameState.quest.desc = "Periksa motor Mas Budi di depan halaman bengkelmu.";
-            // Munculkan motor pelanggan
-            const bike = interactables.find(i => i.id === "customer_bike");
-            if (bike) bike.active = true;
-            updateHUD();
-            showToast("Motor pelanggan telah tiba di bengkel!");
-          }
+      `Bagus sekali! Perkakas sudah siap. Tadi tetangga kita, <b>Mas Budi</b>, menitipkan motor bebeknya di depan teras bengkelmu.<br><br>
+      Olinya sudah hitam pekat dan tarikannya sangat berat. Segera lakukan servis ganti oli pertamamu!`,
+      [{
+        label: "Siap Om, saya kerjakan dengan teliti!",
+        cb: () => {
+          closeModals();
+          GameState.quest.step = 3;
+          GameState.quest.desc = "Lakukan servis ganti oli motor Mas Budi di depan bengkel.";
+          bikeGroup.visible = true; // Munculkan motor
+          updateHUD();
+          showToast("Motor Mas Budi siap diservis di teras bengkel!");
         }
-      ]
+      }]
     );
   } else {
-    openDialogue(
+    openDialog(
       "Om Danu",
-      `Ingat anak muda, jangan paksakan tenagamu kalau lelah atau lapar. Usaha bengkel itu maraton panjang, bukan lari cepat.`
+      `Jaga selalu mutu kerjamu, Arga. Di dunia otomotif, kejujuran pada pelanggan adalah kunci sukses jangka panjang.`
     );
   }
 }
 
-function interactWithTejo() {
-  if (GameState.quest.chapter === 1 && GameState.quest.step === 1) {
-    openDialogue(
-      "Pak Tejo (Toko Onderdil)",
-      `Halo montir muda! Mau cari apa? Om Danu sudah cerita kamu mau buka bengkel.<br>
-      Saya ada <b>Paket Perkakas Mekanik Dasar</b> (Kunci Sok, Kunci Ring, Obeng, Tang). Harganya <b>Rp 750.000</b>. Mau ambil?`,
-      [
-        {
-          label: "Beli Paket Perkakas (Rp 750.000)",
-          cb: () => {
-            if (GameState.player.cash >= 750000) {
-              GameState.player.cash -= 750000;
-              GameState.player.hasBasicTools = true;
-              GameState.quest.step = 2;
-              GameState.quest.desc = "Kembali lapor ke Om Danu bahwa alat sudah siap.";
-              audio.sndCash();
-              closeDialogue();
-              updateHUD();
-              showToast("Peralatan servis dasar berhasil dibeli!");
-            } else {
-              showToast("Uang tidak mencukupi!");
-            }
-          }
-        },
-        { label: "Nanti dulu", cb: closeDialogue }
-      ]
-    );
+function openPartsShop() {
+  const modal = document.getElementById('modal-shop');
+  const catalog = document.getElementById('shop-catalog');
+  catalog.innerHTML = "";
+
+  const items = [
+    { id: "tools", name: "Set Kunci Pas & Sok Lengkap", price: 750000, desc: "Wajib dimiliki untuk membongkar baut motor." },
+    { id: "oil", name: "Oli Mesin Matic/Bebek (0.8L)", price: 45000, desc: "Pelumas mesin 4T SAE 10W-30." }
+  ];
+
+  items.forEach(it => {
+    const card = document.createElement('div');
+    card.className = "item-card";
+    const bought = (it.id === "tools" && GameState.player.hasBasicTools);
+    card.innerHTML = `
+      <div>
+        <h5 style="color:#f59e0b; font-size:13px;">${it.name}</h5>
+        <p style="font-size:11px; color:#94a3b8;">${it.desc}</p>
+        <p style="color:#10b981; font-weight:bold; margin-top:2px;">${formatRupiah(it.price)}</p>
+      </div>
+      <button class="btn-ui" ${bought ? 'disabled' : ''} onclick="buyShopItem('${it.id}', ${it.price})">
+        ${bought ? 'Sudah Ada' : 'Beli'}
+      </button>
+    `;
+    catalog.appendChild(card);
+  });
+
+  modal.style.display = 'flex';
+  GameState.isPaused = true;
+}
+
+window.buyShopItem = (id, price) => {
+  audio.init();
+  if (GameState.player.cash >= price) {
+    GameState.player.cash -= price;
+    if (id === "tools") GameState.player.hasBasicTools = true;
+    if (id === "oil") GameState.player.hasOilStock = true;
+    audio.cash();
+    showToast(`Berhasil membeli ${id === 'tools' ? 'Set Kunci' : 'Oli Mesin'}!`);
+
+    // Kemajuan Quest Bab 1 Step 1 -> Step 2
+    if (id === "tools" && GameState.quest.chapter === 1 && GameState.quest.step === 1) {
+      GameState.quest.step = 2;
+      GameState.quest.desc = "Kembali ke Om Danu dan laporkan peralatan sudah siap.";
+    }
+    openPartsShop(); // Refresh catalog
+    updateHUD();
   } else {
-    openDialogue(
-      "Pak Tejo",
-      `Stok oli mesin MPX & Federal selalu ready. Tetap semangat mengelola modal tokomu, jangan sampai boncos!`
-    );
+    showToast("Uang kas tidak mencukupi!");
   }
-}
+};
 
-function interactWithWarung() {
-  openDialogue(
-    "Bu Siti (Warung Makan)",
-    `Monggo Mas ${GameState.player.name}, mau makan apa hari ini? Supaya sehat dan nggak pusing lagi pas kerja.<br><br>
-    • Nasi Rames Komplit (+35 Lapar, +15 Energi) : <b>Rp 15.000</b><br>
-    • Es Teh Manis Jumbo (+40 Haus) : <b>Rp 5.000</b>`,
-    [
-      {
-        label: "Beli Nasi Rames (Rp 15.000)",
-        cb: () => {
-          if (GameState.player.cash >= 15000) {
-            GameState.player.cash -= 15000;
-            GameState.player.hunger = Math.min(100, GameState.player.hunger + 35);
-            GameState.player.energy = Math.min(100, GameState.player.energy + 15);
-            audio.sndCash();
-            closeDialogue();
-            updateHUD();
-            showToast("Kenyang dan bertenaga!");
-          }
-        }
-      },
-      {
-        label: "Beli Es Teh (Rp 5.000)",
-        cb: () => {
-          if (GameState.player.cash >= 5000) {
-            GameState.player.cash -= 5000;
-            GameState.player.thirst = Math.min(100, GameState.player.thirst + 40);
-            audio.sndCash();
-            closeDialogue();
-            updateHUD();
-            showToast("Segar!");
-          }
-        }
-      },
-      { label: "Batal", cb: closeDialogue }
-    ]
-  );
-}
-
-function interactWithBed() {
-  openDialogue(
-    "Kamar Tidur",
-    `Apakah kamu ingin beristirahat hingga besok pagi pukul 06:00 WIB?<br>
-    Tidur memulihkan Energi (+60) dan Memperbaiki Kesehatan (+20).`,
+function sleepAndRest() {
+  openDialog(
+    "Tempat Tidur Arga",
+    "Apakah kamu ingin tidur untuk memulihkan Energi (+60) dan memajukan waktu hingga jam 06:00 pagi?",
     [
       {
         label: "Tidur Sekarang",
         cb: () => {
-          closeDialogue();
+          closeModals();
           GameState.time.day += 1;
           GameState.time.hour = 6;
           GameState.time.minute = 0;
           GameState.player.energy = Math.min(100, GameState.player.energy + 60);
-          GameState.player.hp = Math.min(100, GameState.player.hp + 20);
-          GameState.player.hunger = Math.max(10, GameState.player.hunger - 25);
-          GameState.player.thirst = Math.max(10, GameState.player.thirst - 30);
-          audio.sndSuccess();
+          GameState.player.hunger = Math.max(10, GameState.player.hunger - 20);
+          audio.success();
           updateHUD();
-          showToast(`Selamat pagi! Hari ke-${GameState.time.day} dimulai.`);
+          showToast(`Hari ke-${GameState.time.day} dimulai. Badan terasa lebih segar!`);
         }
       },
-      { label: "Batal", cb: closeDialogue }
+      { label: "Batal", cb: closeModals }
     ]
   );
 }
 
-// --- 5. MINIGAME: SERVIS MOTOR INTERAKTIF ---
-let minigameState = {
+// Minigame State
+let minigame = {
   active: false,
-  step: 1, // 1: Buka Baut, 2: Kuras Oli, 3: Pasang Baut, 4: Tuang Oli Baru
-  cursorPos: 0,
-  cursorDir: 1,
-  cursorSpeed: 140, // speed in % per sec
-  targetStart: 35,
-  targetWidth: 30
+  step: 1,
+  needle: 0,
+  dir: 1,
+  speed: 160,
+  targetL: 35,
+  targetW: 28
 };
 
-const serviceOverlay = document.getElementById('service-overlay');
-const serviceStepTitle = document.getElementById('service-step-title');
-const serviceInstruction = document.getElementById('service-instruction');
-const serviceCursor = document.getElementById('service-cursor');
-const serviceTarget = document.getElementById('service-target');
-const btnServiceAction = document.getElementById('btn-service-action');
-
-function startServiceMinigame() {
+function startRepairMinigame() {
   if (!GameState.player.hasBasicTools) {
-    showToast("Kamu membutuhkan set perkakas dari Pak Tejo!");
+    showToast("Kamu belum memiliki Set Kunci Dasar! Beli di Pak Tejo.");
     return;
   }
+  minigame.active = true;
+  minigame.step = 1;
+  minigame.needle = 0;
+  setupMinigameStep();
+  document.getElementById('modal-repair').style.display = 'flex';
   GameState.isPaused = true;
-  minigameState.active = true;
-  minigameState.step = 1;
-  minigameState.cursorPos = 0;
-  setupServiceStep();
-  serviceOverlay.style.display = 'flex';
 }
 
-function setupServiceStep() {
-  if (minigameState.step === 1) {
-    serviceStepTitle.innerText = "Tahap 1: Buka Baut Kuras Oli (Bawah Mesin)";
-    serviceInstruction.innerText = "Tekan tombol saat jarum tepat berada di area hijau!";
-    btnServiceAction.innerText = "Putar Kunci Sok 17mm";
-    minigameState.targetStart = 35;
-    minigameState.targetWidth = 30;
-    minigameState.cursorSpeed = 160;
-  } else if (minigameState.step === 2) {
-    serviceStepTitle.innerText = "Tahap 2: Menampung & Kuras Oli Kotor";
-    serviceInstruction.innerText = "Tahan konsentrasi dan tekan tombol pada saat yang tepat!";
-    btnServiceAction.innerText = "Tadah Wadah Oli";
-    minigameState.targetStart = 45;
-    minigameState.targetWidth = 25;
-    minigameState.cursorSpeed = 190;
-  } else if (minigameState.step === 3) {
-    serviceStepTitle.innerText = "Tahap 3: Kencangkan Kembali Baut Tap Oli";
-    serviceInstruction.innerText = "Pastikan ring washer terpasang agar tidak bocor.";
-    btnServiceAction.innerText = "Kencangkan Baut";
-    minigameState.targetStart = 30;
-    minigameState.targetWidth = 28;
-    minigameState.cursorSpeed = 210;
-  } else if (minigameState.step === 4) {
-    serviceStepTitle.innerText = "Tahap 4: Tuangkan Oli Mesin Baru (0.8 Liter)";
-    serviceInstruction.innerText = "Tuang presisi dan jangan sampai meluber ke blok mesin!";
-    btnServiceAction.innerText = "Tuang Oli";
-    minigameState.targetStart = 42;
-    minigameState.targetWidth = 20;
-    minigameState.cursorSpeed = 240;
+function setupMinigameStep() {
+  const title = document.getElementById('repair-step-name');
+  const btn = document.getElementById('btn-repair-press');
+  if (minigame.step === 1) {
+    title.innerText = "Tahap 1 / 3: Buka Baut Tap Oli (Kunci Ring 17mm)";
+    btn.innerText = "Putar Kunci";
+    minigame.targetL = 35; minigame.targetW = 30; minigame.speed = 160;
+  } else if (minigame.step === 2) {
+    title.innerText = "Tahap 2 / 3: Pasang Kembali Baut & Washer Baru";
+    btn.innerText = "Kencangkan Torsi";
+    minigame.targetL = 40; minigame.targetW = 26; minigame.speed = 190;
+  } else if (minigame.step === 3) {
+    title.innerText = "Tahap 3 / 3: Tuangkan Oli Mesin Baru (0.8 Liter)";
+    btn.innerText = "Tuang Oli Presisi";
+    minigame.targetL = 42; minigame.targetW = 22; minigame.speed = 220;
   }
-  serviceTarget.style.left = minigameState.targetStart + "%";
-  serviceTarget.style.width = minigameState.targetWidth + "%";
+  const tgt = document.getElementById('gauge-target');
+  tgt.style.left = minigame.targetL + "%";
+  tgt.style.width = minigame.targetW + "%";
 }
 
-btnServiceAction.addEventListener('pointerdown', (e) => {
+document.getElementById('btn-repair-press').addEventListener('pointerdown', (e) => {
   e.preventDefault();
   audio.init();
-  if (!minigameState.active) return;
+  if (!minigame.active) return;
 
-  const hit = minigameState.cursorPos >= minigameState.targetStart &&
-              minigameState.cursorPos <= (minigameState.targetStart + minigameState.targetWidth);
-
+  const hit = minigame.needle >= minigame.targetL && minigame.needle <= (minigame.targetL + minigame.targetW);
   if (hit) {
-    audio.sndWrench();
-    minigameState.step++;
-    if (minigameState.step > 4) {
-      finishServiceMinigame(true);
+    audio.wrench();
+    minigame.step++;
+    if (minigame.step > 3) {
+      finishRepair();
     } else {
-      setupServiceStep();
+      setupMinigameStep();
     }
   } else {
-    audio.playTone(120, 'sawtooth', 0.2, 0.15);
-    showToast("Kurang tepat! Ulangi tahapan ini.");
+    audio.play(140, 'sawtooth', 0.15, 0.15);
+    showToast("Meleset! Ulangi pemasangan baut.");
   }
 });
 
-function finishServiceMinigame(success) {
-  minigameState.active = false;
-  serviceOverlay.style.display = 'none';
+function cancelRepair() {
+  minigame.active = false;
+  document.getElementById('modal-repair').style.display = 'none';
   GameState.isPaused = false;
-
-  if (success) {
-    const fee = 85000; // Jasa ganti oli + oli mesin
-    GameState.player.cash += fee;
-    GameState.player.rep += 15;
-    GameState.player.energy = Math.max(10, GameState.player.energy - 15);
-    GameState.player.thirst = Math.max(10, GameState.player.thirst - 12);
-    audio.sndSuccess();
-    audio.sndCash();
-
-    // Selesaikan quest Bab 2
-    GameState.quest.chapter = 3;
-    GameState.quest.step = 0;
-    GameState.quest.title = "Bab 3: Evaluasi Keuangan";
-    GameState.quest.desc = "Selamat! Servis pertamamu sukses. Cek saldo dan jaga kesehatanmu.";
-
-    // Sembunyikan motor
-    const bike = interactables.find(i => i.id === "customer_bike");
-    if (bike) bike.active = false;
-
-    updateHUD();
-    openDialogue(
-      "Mas Budi (Pelanggan Pertama)",
-      `Wah, terima kasih banyak Mas ${GameState.player.name}! Suara mesin motor Supra saya jadi halus lagi.<br><br>
-      Ini uang jasanya <b>${formatRupiah(fee)}</b>. Nanti saya rekomendasikan ke teman-teman ronda kampung!`
-    );
-  }
 }
 
-// --- 6. CONTROLS (JOYSTICK SENTUH & KEYBOARD FALLBACK) ---
-const keys = { w: false, a: false, s: false, d: false, Shift: false, interact: false };
+function finishRepair() {
+  minigame.active = false;
+  document.getElementById('modal-repair').style.display = 'none';
+  GameState.isPaused = false;
+
+  // Reward Transaksi
+  const fee = 85000;
+  GameState.player.cash += fee;
+  GameState.player.rep += 15;
+  GameState.player.energy = Math.max(10, GameState.player.energy - 15);
+  bikeGroup.visible = false; // Sembunyikan motor setelah selesai
+
+  // Bab 1 SELESAI -> Menuju Bab 2
+  GameState.quest.chapter = 2;
+  GameState.quest.step = 0;
+  GameState.quest.title = "Bab 2: Kepercayaan yang Dibangun";
+  GameState.quest.desc = "Sukses! Layani pelanggan berikutnya dan tingkatkan reputasimu.";
+
+  audio.cash();
+  audio.success();
+  updateHUD();
+
+  openDialog(
+    "Mas Budi (Pelanggan Pertama)",
+    `Alhamdulillah, tarikan motor Supra saya jadi enteng dan halus lagi, Mas Arga!<br><br>
+    Ini bayaran jasanya <b>${formatRupiah(fee)}</b>. Pasti saya jadikan bengkel ini langganan tetap!`
+  );
+}
+
+// --- 7. CONTROLS, VIEWPORT & INPUT HANDLING ---
+const input = { x: 0, y: 0 };
+const keys = { w: false, a: false, s: false, d: false };
 
 window.addEventListener('keydown', (e) => {
   audio.init();
@@ -887,7 +1159,7 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 's' || e.key === 'ArrowDown') keys.s = true;
   if (e.key === 'd' || e.key === 'ArrowRight') keys.d = true;
   if (e.key === 'Shift') GameState.player.isSprinting = true;
-  if (e.key === 'e' || e.key === ' ') handleInteraction();
+  if (e.key === 'e' || e.key === ' ') doAction();
 });
 window.addEventListener('keyup', (e) => {
   if (e.key === 'w' || e.key === 'ArrowUp') keys.w = false;
@@ -898,343 +1170,238 @@ window.addEventListener('keyup', (e) => {
 });
 
 // Virtual Joystick Touch Setup
-const joystickArea = document.getElementById('joystick-area');
-const joystickKnob = document.getElementById('joystick-knob');
-let touchData = { active: false, startX: 0, startY: 0, moveX: 0, moveY: 0 };
+const joyBase = document.getElementById('joystick-base');
+const joyKnob = document.getElementById('joystick-knob');
+let joyTouch = { active: false, id: null, cx: 0, cy: 0 };
 
-joystickArea.addEventListener('pointerdown', (e) => {
+joyBase.addEventListener('pointerdown', (e) => {
   audio.init();
-  touchData.active = true;
-  const rect = joystickArea.getBoundingClientRect();
-  touchData.startX = rect.left + rect.width / 2;
-  touchData.startY = rect.top + rect.height / 2;
-  updateJoystick(e.clientX, e.clientY);
+  joyTouch.active = true;
+  joyTouch.id = e.pointerId;
+  const rect = joyBase.getBoundingClientRect();
+  joyTouch.cx = rect.left + rect.width / 2;
+  joyTouch.cy = rect.top + rect.height / 2;
+  calcJoystick(e.clientX, e.clientY);
 });
-
 window.addEventListener('pointermove', (e) => {
-  if (!touchData.active) return;
-  updateJoystick(e.clientX, e.clientY);
+  if (!joyTouch.active || e.pointerId !== joyTouch.id) return;
+  calcJoystick(e.clientX, e.clientY);
+});
+window.addEventListener('pointerup', (e) => {
+  if (e.pointerId === joyTouch.id) {
+    joyTouch.active = false;
+    input.x = 0; input.y = 0;
+    joyKnob.style.transform = `translate(0px, 0px)`;
+  }
+});
+window.addEventListener('pointercancel', () => {
+  joyTouch.active = false;
+  input.x = 0; input.y = 0;
+  joyKnob.style.transform = `translate(0px, 0px)`;
 });
 
-window.addEventListener('pointerup', () => {
-  if (!touchData.active) return;
-  touchData.active = false;
-  touchData.moveX = 0;
-  touchData.moveY = 0;
-  joystickKnob.style.transform = `translate(0px, 0px)`;
-});
-
-function updateJoystick(cx, cy) {
-  const dx = cx - touchData.startX;
-  const dy = cy - touchData.startY;
+function calcJoystick(cx, cy) {
+  const dx = cx - joyTouch.cx;
+  const dy = cy - joyTouch.cy;
   const dist = Math.hypot(dx, dy);
   const maxR = 40;
-  const clampedDist = Math.min(dist, maxR);
+  const clamped = Math.min(dist, maxR);
   const angle = Math.atan2(dy, dx);
+  const kx = Math.cos(angle) * clamped;
+  const ky = Math.sin(angle) * clamped;
 
-  const kx = Math.cos(angle) * clampedDist;
-  const ky = Math.sin(angle) * clampedDist;
-  joystickKnob.style.transform = `translate(${kx}px, ${ky}px)`;
-
-  touchData.moveX = kx / maxR;
-  touchData.moveY = ky / maxR;
+  joyKnob.style.transform = `translate(${kx}px, ${ky}px)`;
+  input.x = kx / maxR;
+  input.y = ky / maxR;
 }
 
-// Touch Buttons
-document.getElementById('btn-interact').addEventListener('pointerdown', (e) => {
+document.getElementById('btn-touch-action').addEventListener('pointerdown', (e) => {
   e.preventDefault();
   audio.init();
-  handleInteraction();
+  doAction();
 });
-document.getElementById('btn-run').addEventListener('pointerdown', (e) => {
+document.getElementById('btn-touch-sprint').addEventListener('pointerdown', (e) => {
   e.preventDefault();
   audio.init();
   GameState.player.isSprinting = !GameState.player.isSprinting;
   e.currentTarget.style.filter = GameState.player.isSprinting ? 'brightness(1.5)' : 'none';
 });
-document.getElementById('btn-save').addEventListener('pointerdown', (e) => {
-  e.preventDefault();
-  audio.init();
-  saveGame();
-});
 
-function handleInteraction() {
+function doAction() {
   if (GameState.isPaused) return;
-  const p = GameState.player;
+  const p = playerGroup.position;
   for (const obj of interactables) {
-    if (obj.active === false) continue;
-    const dist = Math.hypot(p.x - obj.x, p.y - obj.y);
+    if (obj.id === "bike_budi" && !bikeGroup.visible) continue;
+    const dist = Math.hypot(p.x - obj.x, p.z - obj.z);
     if (dist <= obj.radius) {
-      obj.onInteract();
+      obj.action();
       return;
     }
   }
 }
 
-// --- 7. HUD & VITALS UPDATE ---
+// Menu Buttons
+const menuScreen = document.getElementById('menu-screen');
+const hudScreen = document.getElementById('hud-screen');
+const btnStart = document.getElementById('btn-start-game');
+const btnContinue = document.getElementById('btn-continue-game');
+
+if (hasSave()) btnContinue.disabled = false;
+
+btnStart.addEventListener('pointerdown', () => {
+  audio.init();
+  audio.btn();
+  menuScreen.classList.remove('ui-show');
+  hudScreen.classList.add('ui-show');
+  updateHUD();
+  showToast("Selamat datang di Kota Nusantara Jaya!");
+});
+
+btnContinue.addEventListener('pointerdown', () => {
+  audio.init();
+  audio.btn();
+  if (loadGame()) {
+    menuScreen.classList.remove('ui-show');
+    hudScreen.classList.add('ui-show');
+    updateHUD();
+    showToast("Progress berhasil dimuat!");
+  }
+});
+
+document.getElementById('btn-tab-save').onclick = () => { audio.init(); saveGame(); };
+document.getElementById('btn-tab-help').onclick = () => {
+  openDialog(
+    "Panduan Kontrol",
+    `<b>Kontrol Permainan:</b><br>
+    • Komputer: Tombol <b>WASD / Panah</b> untuk bergerak, <b>Spasi / E</b> untuk interaksi, <b>Shift</b> untuk lari.<br>
+    • HP Android: Gunakan <b>Virtual Analog</b> di kiri bawah dan tombol <b>(A)</b> di kanan bawah.`
+  );
+};
+
+// --- 8. HUD & ENGINE LOOP ---
 function updateHUD() {
   document.getElementById('hud-shop-name').innerText = GameState.player.shopName;
   document.getElementById('hud-cash').innerText = formatRupiah(GameState.player.cash);
   document.getElementById('hud-rep').innerText = GameState.player.rep;
   
-  const mStr = GameState.time.minute.toString().padStart(2, '0');
-  const hStr = GameState.time.hour.toString().padStart(2, '0');
-  document.getElementById('hud-clock').innerText = `Hari ${GameState.time.day} - ${hStr}:${mStr} WIB`;
+  const m = GameState.time.minute.toString().padStart(2, '0');
+  const h = GameState.time.hour.toString().padStart(2, '0');
+  document.getElementById('hud-clock').innerText = `Hari ${GameState.time.day} - ${h}:${m} WIB`;
 
-  document.getElementById('bar-hp').style.width = GameState.player.hp + "%";
   document.getElementById('bar-energy').style.width = GameState.player.energy + "%";
   document.getElementById('bar-hunger').style.width = GameState.player.hunger + "%";
-  document.getElementById('bar-thirst').style.width = GameState.player.thirst + "%";
 
   document.getElementById('quest-title').innerText = GameState.quest.title;
   document.getElementById('quest-desc').innerText = GameState.quest.desc;
 }
 
-// --- 8. RENDERER & GAME LOOP ---
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-let lastTime = performance.now();
-
-function checkCollision(nx, ny) {
-  const pR = 14;
-  // World bounds
-  if (nx - pR < 0 || nx + pR > WORLD_WIDTH || ny - pR < 0 || ny + pR > WORLD_HEIGHT) return true;
-
-  // Buildings collision
-  for (const b of solidBuildings) {
-    if (nx + pR > b.x && nx - pR < b.x + b.w &&
-        ny + pR > b.y && ny - pR < b.y + b.h) {
-      return true;
-    }
+function handleResize() {
+  const w = viewportContainer.clientWidth;
+  const h = viewportContainer.clientHeight;
+  if (w > 0 && h > 0) {
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h, false);
   }
-  return false;
 }
+window.addEventListener('resize', handleResize);
+handleResize();
+
+let lastTime = performance.now();
+let walkCycle = 0;
 
 function update(dt) {
-  if (GameState.isPaused) {
-    // Service minigame update
-    if (minigameState.active) {
-      minigameState.cursorPos += minigameState.cursorDir * minigameState.cursorSpeed * dt;
-      if (minigameState.cursorPos >= 100) {
-        minigameState.cursorPos = 100;
-        minigameState.cursorDir = -1;
-      } else if (minigameState.cursorPos <= 0) {
-        minigameState.cursorPos = 0;
-        minigameState.cursorDir = 1;
-      }
-      serviceCursor.style.left = minigameState.cursorPos + "%";
-    }
+  // Update Minigame Needle
+  if (minigame.active) {
+    minigame.needle += minigame.dir * minigame.speed * dt;
+    if (minigame.needle >= 100) { minigame.needle = 100; minigame.dir = -1; }
+    else if (minigame.needle <= 0) { minigame.needle = 0; minigame.dir = 1; }
+    document.getElementById('gauge-needle').style.left = minigame.needle + "%";
     return;
   }
 
-  // Time Cycle (1 game minute = 0.8 real second)
+  if (GameState.isPaused) return;
+
+  // Waktu Permainan (1 menit game = 0.8 detik)
   GameState.time.timer += dt;
   if (GameState.time.timer >= 0.8) {
     GameState.time.timer = 0;
-    GameState.time.minute += 1;
+    GameState.time.minute++;
     if (GameState.time.minute >= 60) {
       GameState.time.minute = 0;
-      GameState.time.hour += 1;
-      // Vitals drain per jam
-      GameState.player.hunger = Math.max(0, GameState.player.hunger - 1.2);
-      GameState.player.thirst = Math.max(0, GameState.player.thirst - 1.6);
-      if (GameState.player.hunger < 15 || GameState.player.thirst < 15) {
-        GameState.player.hp = Math.max(10, GameState.player.hp - 2);
-      }
+      GameState.time.hour++;
+      GameState.player.hunger = Math.max(0, GameState.player.hunger - 1.5);
       if (GameState.time.hour >= 24) {
         GameState.time.hour = 0;
-        GameState.time.day += 1;
+        GameState.time.day++;
       }
+      updateHUD();
     }
-    updateHUD();
   }
 
-  // Player Movement (Joystick + Keyboard)
-  let moveX = touchData.moveX;
-  let moveY = touchData.moveY;
+  // Input Gerakan Player
+  let mx = input.x;
+  let mz = input.y;
+  if (keys.a) mx = -1;
+  if (keys.d) mx = 1;
+  if (keys.w) mz = -1;
+  if (keys.s) mz = 1;
 
-  if (keys.a) moveX = -1;
-  if (keys.d) moveX = 1;
-  if (keys.w) moveY = -1;
-  if (keys.s) moveY = 1;
+  if (mx !== 0 || mz !== 0) {
+    const len = Math.hypot(mx, mz);
+    const spd = (GameState.player.isSprinting ? 7.5 : 4.5) * dt;
+    const nx = playerGroup.position.x + (mx / len) * spd;
+    const nz = playerGroup.position.z + (mz / len) * spd;
 
-  if (moveX !== 0 || moveY !== 0) {
-    const len = Math.hypot(moveX, moveY);
-    const normX = moveX / len;
-    const normY = moveY / len;
+    // Putar Karakter menghadap arah gerak
+    const targetAngle = Math.atan2(mx, mz);
+    playerGroup.rotation.y = targetAngle;
 
-    const sprintMult = GameState.player.isSprinting ? 1.6 : 1.0;
-    const spd = GameState.player.speed * sprintMult * dt;
-    const nextX = GameState.player.x + normX * spd;
-    const nextY = GameState.player.y + normY * spd;
+    // Animasi Prosedural Kaki Melangkah
+    walkCycle += dt * (GameState.player.isSprinting ? 14 : 9);
+    legL.rotation.x = Math.sin(walkCycle) * 0.45;
+    legR.rotation.x = -Math.sin(walkCycle) * 0.45;
 
-    if (!checkCollision(nextX, GameState.player.y)) GameState.player.x = nextX;
-    if (!checkCollision(GameState.player.x, nextY)) GameState.player.y = nextY;
+    // Batas Dunia & Collision Box Sederhana
+    if (nx > -70 && nx < 70) playerGroup.position.x = nx;
+    if (nz > -70 && nz < 70) playerGroup.position.z = nz;
+  } else {
+    // Reset posisi kaki saat idle
+    legL.rotation.x = 0;
+    legR.rotation.x = 0;
   }
 
-  // Interaction Hint Detection
-  const hint = document.getElementById('interaction-hint');
-  let nearObj = null;
+  // Third-Person Smooth Follow Camera
+  const targetCamPos = new THREE.Vector3(
+    playerGroup.position.x,
+    playerGroup.position.y + 4.2,
+    playerGroup.position.z + 7.5
+  );
+  camera.position.lerp(targetCamPos, 0.08);
+  // Hindari kamera turun ke bawah tanah
+  camera.position.y = Math.max(1.2, camera.position.y);
+  camera.lookAt(playerGroup.position.x, playerGroup.position.y + 1.2, playerGroup.position.z);
+
+  // Deteksi Prompt Interaksi
+  const prompt = document.getElementById('prompt-interact');
+  let nearby = null;
   for (const obj of interactables) {
-    if (obj.active === false) continue;
-    if (Math.hypot(GameState.player.x - obj.x, GameState.player.y - obj.y) <= obj.radius) {
-      nearObj = obj;
+    if (obj.id === "bike_budi" && !bikeGroup.visible) continue;
+    if (Math.hypot(playerGroup.position.x - obj.x, playerGroup.position.z - obj.z) <= obj.radius) {
+      nearby = obj;
       break;
     }
   }
-
-  if (nearObj) {
-    hint.style.display = 'block';
-    hint.innerText = `${nearObj.name} [Tekan A]`;
-    // Position hint near player on screen
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = rect.width / WORLD_WIDTH;
-    const scaleY = rect.height / WORLD_HEIGHT;
-    hint.style.left = (rect.left + GameState.player.x * scaleX) + 'px';
-    hint.style.top = (rect.top + (GameState.player.y - 30) * scaleY) + 'px';
+  if (nearby) {
+    prompt.style.display = 'block';
+    prompt.innerText = `${nearby.name} [Tekan A / E]`;
   } else {
-    hint.style.display = 'none';
+    prompt.style.display = 'none';
   }
 }
 
 function render() {
-  ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-
-  // 1. Background Ground (Teras Bengkel & Jalan Aspal Indonesia)
-  ctx.fillStyle = "#2c3e50";
-  ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-
-  // Jalan Aspal (Middle Highway)
-  ctx.fillStyle = "#1e272e";
-  ctx.fillRect(0, 290, WORLD_WIDTH, 170);
-
-  // Marka Jalan Putih Putus-putus
-  ctx.strokeStyle = "#ffffff";
-  ctx.lineWidth = 4;
-  ctx.setLineDash([20, 20]);
-  ctx.beginPath();
-  ctx.moveTo(0, 375);
-  ctx.lineTo(WORLD_WIDTH, 375);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  // Halaman Depan Bengkel Pemain
-  ctx.fillStyle = "#7f8c8d";
-  ctx.fillRect(340, 200, 280, 90);
-
-  // 2. Buildings & Signboards
-  for (const b of solidBuildings) {
-    // Bayangan
-    ctx.fillStyle = "rgba(0,0,0,0.3)";
-    ctx.fillRect(b.x + 5, b.y + 5, b.w, b.h);
-
-    // Bangunan
-    ctx.fillStyle = b.color;
-    ctx.fillRect(b.x, b.y, b.w, b.h);
-
-    // Atap Kanopi
-    ctx.fillStyle = "rgba(255,255,255,0.15)";
-    ctx.fillRect(b.x, b.y + b.h - 20, b.w, 20);
-
-    // Plang Nama Toko
-    ctx.fillStyle = "#111";
-    ctx.fillRect(b.x + 15, b.y + 15, b.w - 30, 26);
-    ctx.fillStyle = "#f39c12";
-    ctx.font = "bold 12px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText(b.label, b.x + b.w / 2, b.y + 32);
-  }
-
-  // Kasur di kamar pemain
-  ctx.fillStyle = "#3498db";
-  ctx.fillRect(375, 175, 30, 25);
-  ctx.fillStyle = "#fff";
-  ctx.font = "10px sans-serif";
-  ctx.fillText("Kasur", 390, 190);
-
-  // 3. Render Interactable Entities & NPCs
-  for (const obj of interactables) {
-    if (obj.active === false) continue;
-
-    // Radius Guide Ring
-    ctx.strokeStyle = "rgba(230, 126, 34, 0.4)";
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(obj.x, obj.y, obj.radius, 0, Math.PI * 2);
-    ctx.stroke();
-
-    if (obj.id === "customer_bike") {
-      // Gambar Motor Bebek Mas Budi
-      ctx.fillStyle = "#e74c3c";
-      ctx.fillRect(obj.x - 22, obj.y - 12, 44, 24);
-      // Roda motor
-      ctx.fillStyle = "#000";
-      ctx.beginPath();
-      ctx.arc(obj.x - 18, obj.y + 12, 8, 0, Math.PI*2);
-      ctx.arc(obj.x + 18, obj.y + 12, 8, 0, Math.PI*2);
-      ctx.fill();
-      // Label
-      ctx.fillStyle = "#fff";
-      ctx.font = "bold 11px sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText("Motor Mas Budi", obj.x, obj.y - 20);
-    } else if (obj.type === "npc") {
-      // Karakter NPC
-      ctx.fillStyle = "#f1c40f";
-      ctx.beginPath();
-      ctx.arc(obj.x, obj.y - 10, 12, 0, Math.PI * 2);
-      ctx.fill();
-      // Baju
-      ctx.fillStyle = "#2980b9";
-      ctx.fillRect(obj.x - 10, obj.y - 2, 20, 18);
-      // Nama di atas NPC
-      ctx.fillStyle = "#fff";
-      ctx.font = "bold 11px sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText(obj.name.split(" ")[0], obj.x, obj.y - 26);
-    }
-  }
-
-  // 4. Render Karakter Utama (Rian - Wearpack Montir)
-  const p = GameState.player;
-  // Bayangan
-  ctx.fillStyle = "rgba(0,0,0,0.35)";
-  ctx.beginPath();
-  ctx.ellipse(p.x, p.y + 16, 12, 6, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Tubuh (Wearpack Abu/Oranye Montir)
-  ctx.fillStyle = "#d35400";
-  ctx.fillRect(p.x - 10, p.y - 4, 20, 20);
-
-  // Kepala
-  ctx.fillStyle = "#f5cd79";
-  ctx.beginPath();
-  ctx.arc(p.x, p.y - 14, 12, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Rambut
-  ctx.fillStyle = "#2c3e50";
-  ctx.beginPath();
-  ctx.arc(p.x, p.y - 18, 12, Math.PI, Math.PI * 2);
-  ctx.fill();
-
-  // Nama Pemain
-  ctx.fillStyle = "#fff";
-  ctx.font = "bold 11px sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText(p.name, p.x, p.y - 30);
-
-  // 5. Day/Night Tinting Simulation
-  const hour = GameState.time.hour;
-  let darkness = 0;
-  if (hour >= 18 || hour < 5) darkness = 0.55; // Malam
-  else if (hour >= 16) darkness = 0.2;         // Sore kemerahan
-
-  if (darkness > 0) {
-    ctx.fillStyle = `rgba(10, 15, 35, ${darkness})`;
-    ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-  }
+  renderer.render(scene, camera);
 }
 
 function gameLoop(now) {
@@ -1245,11 +1412,9 @@ function gameLoop(now) {
   requestAnimationFrame(gameLoop);
 }
 
-// Inisialisasi awal saat halaman dimuat
+// Inisialisasi Permainan
 window.onload = () => {
-  if (!loadGame()) {
-    updateHUD();
-  }
+  handleResize();
   requestAnimationFrame(gameLoop);
 };
 </script>
